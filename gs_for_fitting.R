@@ -127,6 +127,22 @@ g_forwardstep_3steps <- function(y, xtrain, xtest = NULL){
   }
 }
 
+#' forward stepwise model with fixed number of steps k = 2
+#' 
+#' @param y response vector
+#' @param xtrain matrix of features (fixed-X setting)
+#' @param xtest matrix of features for testing. if not provided, uses xtrain
+#' @return vector of \hat Y
+g_forwardstep_2steps <- function(y, xtrain, xtest = NULL){
+  if(is.null(xtest)){xtest = xtrain}
+  mod <- fs(xtrain, y, maxsteps = 2)
+  if(is.vector(xtest)){
+    return(as.vector(predict(mod, xtest)[,2+1]))
+  } else{
+    return(as.vector(predict(mod, xtest)[,2+1]))
+  }
+}
+
 #' relaxed LASSO model whose lambda is tuned using CV and predicts Y using selected model
 #' 
 #' @param y response vector
