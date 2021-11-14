@@ -14,6 +14,9 @@ library(doParallel)
 library(rpart)
 #library(bestsubset)
 library(gridExtra)
+library(igraph)
+library(tvR)
+library(flsa)
 
 
 ## got this function online, looking for the source to give proper credit!
@@ -126,3 +129,5 @@ real_values_X <- function(X, alphavec, sig2, g_true, g, nrep, gen_y = gen_y_gaus
   }
   return(out)
 }
+
+

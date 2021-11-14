@@ -70,3 +70,27 @@ onlycov_uncentered <- function(y, yhat, w, gyplus, alpha, sig2, B_seq){
   return(out)
 }
 
+
+#' Computes \hatErr_\alpha for one noise replication. It is used in the IVar simulation
+#' 
+#' @param y response vector
+#' @param yhat g(y)
+#' @param g mean function to be evaluated. Maps y to \hat\mu
+#' @param sig2 variance
+#' @param alpha noise level
+#' @return number
+riskAlpha_onew_ivarterms <- function(y, yhat, g, sig2, alpha){
+  w1 <- rnorm(length(y), 0, sqrt(sig2))
+  yminus <- y - w1/sqrt(alpha)
+  yplus <- y + w1*sqrt(alpha)
+  gyplus <- g(yplus, X)
+  temp <- yminus - gyplus
+  
+  term1 <- mean((y - gyplus)^2)
+  term1.v2 <- mean((y - yhat)^2)
+  term2 <- 2*mean(w1*gyplus)/sqrt(alpha)
+  
+  CB <- as.numeric(t(temp)%*%temp/length(y) - t(w1)%*%w1/(alpha*length(y))) - sig2 +2*mean(w1*y)/sqrt(alpha)
+  BY <- term1.v2 + term2 - sig2
+  return(data.frame(CB = CB, BY = BY, IVarT1 = term1, IVarT1.BY = term1.v2, IVarT2 = term2))
+}
