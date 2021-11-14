@@ -65,7 +65,7 @@ t0 <- Sys.time()
 real <- bias_and_bound(X, alpha_seq, sig2, g_true, g, nrep = 1000)
 Sys.time() - t0
 real$bias <- real$riskalpha - real$riskalpha[1]
-saveRDS(real, paste("~/noisedf/paper_experiments/bias_", filename, sep = ""))
+saveRDS(real, paste(resultsdir, "/bias_", filename, sep = ""))
 
 
 #### approximating bias and bias bound for FS with maximum of 3 steps
@@ -76,7 +76,7 @@ t0 <- Sys.time()
 real <- bias_and_bound(X, alpha_seq, sig2, g_true, g, nrep = 1000)
 Sys.time() - t0
 real$bias <- real$riskalpha - real$riskalpha[1]
-saveRDS(real, paste("~/noisedf/paper_experiments/bias_", filename, sep = ""))
+saveRDS(real, paste(resultsdir, "/bias_", filename, sep = ""))
 
 #### approximating bias and bias bound for FS with maximum of 10 steps
 g <- g_forwardstep_10steps
@@ -86,16 +86,16 @@ t0 <- Sys.time()
 real <- bias_and_bound(X, alpha_seq, sig2, g_true, g, nrep = 1000)
 Sys.time() - t0
 real$bias <- real$riskalpha - real$riskalpha[1]
-saveRDS(real, paste("~/noisedf/paper_experiments/bias_", filename, sep = ""))
+saveRDS(real, paste(resultsdir, "/bias_", filename, sep = ""))
 
 
 # plots with all of them
 filename <- "FS_90"
-real_90 <- readRDS(paste("~/noisedf/paper_experiments/bias_", filename, sep = ""))
+real_90 <- readRDS(paste(resultsdir, "/bias_", filename, sep = ""))
 filename <- "FS_10"
-real_10 <- readRDS(paste("~/noisedf/paper_experiments/bias_", filename, sep = ""))
+real_10 <- readRDS(paste(resultsdir, "/bias_", filename, sep = ""))
 filename <- "FS_3"
-real_3 <- readRDS(paste("~/noisedf/paper_experiments/bias_", filename, sep = ""))
+real_3 <- readRDS(paste(resultsdir, "/bias_", filename, sep = ""))
 
 real_90$steps = "90"
 real_10$steps = "10"
@@ -120,5 +120,5 @@ p1 <- df_plot %>% mutate(across(textsteps, factor, levels=c("k = 3","k = 10","k 
   ylab("") + 
   labs(linetype="") + theme(panel.spacing = unit(2, "lines"))
 p1
-ggsave(paste("~/noisedf/paper_experiments/FINALplot_04_bias.pdf", sep = ""), plot = p1, device = "pdf", dpi = "retina", width = 12, height = 4.5)
+ggsave(paste(figsdir,"/FINALplot_04_bias.pdf", sep = ""), plot = p1, device = "pdf", dpi = "retina", width = 12, height = 4.5)
 
