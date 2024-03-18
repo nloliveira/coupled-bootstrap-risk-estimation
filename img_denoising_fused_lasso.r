@@ -15,12 +15,22 @@ source(root$find_file("true_gs.R"))
 source(root$find_file("helpers_image_denoising.R"))
 
 
+library(imager)
+library(flsa)
+
 set.seed(208)
-data(lena128)
-img <- normalize(lena128)
+fpath <- system.file('extdata/parrots.png',package='imager')
+parrots <- load.image(fpath)
+plot(grayscale(parrots))
+img <- grayscale(parrots)[,,1,1] 
+image(img[60:257, 168:321])
+img <- img[60:257, 168:321]
+img <- img[,ncol(img):1]
+img <- normalize(img)
 image(img, col = gray.colors(500))
 
 ## adding noise
+set.seed(208)
 s2 = .01
 s2_est = s2
 noised <- normalize(add_gauss_noise(img, sd = sqrt(s2)))
@@ -137,3 +147,49 @@ image(sol[which.min(fusedlasso_unbiasedDF$risk),,], col = gray.colors(500), main
 dev.off()
 par(mfrow=c(1,1))
 
+
+##############
+### Many noise replications
+##############
+
+nnoise <- 30
+lambda_seq <- c(0,exp(seq(log(0.001),log(1.5),length.out = 19)))
+fusedlasso_unbiasedDF_differentnoise <- list()
+CB_est_risk_01_differentnoise <- list()
+CB_est_risk_03_differentnoise <- list()
+CB_est_risk_05_differentnoise <- list()
+set.seed(57)
+for(i in 1:nnoise){
+  cat(paste("\n noise ", i, "...\n\n"))
+  noised <- normalize(add_gauss_noise(img, sd = sqrt(s2)))
+  ## unbiased DF estimator
+  t0 <- Sys.time()
+  fusedlasso_unbiasedDF_differentnoise[[i]] <- unbiased_risk(noised, lambda_seq, s2 = s2_est, sol)
+  Sys.time() - t0
+  cat("Done with SURE\n")
+  ## CB, alpha = 0.1
+  alpha = 0.1
+  B = 30
+  t0 <- Sys.time()
+  CB_est_risk_01_differentnoise[[i]] <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+  Sys.time() - t0
+  cat("Done with CB 0.1\n")
+  ## CB, alpha = 0.3
+  alpha = 0.3
+  B = 15
+  t0 <- Sys.time()
+  CB_est_risk_05_differentnoise[[i]] <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+  Sys.time() - t0
+  cat("Done with CB 0.3\n")
+  ## CB, alpha = 0.5
+  alpha = 0.5
+  B = 5
+  cat("Done with CB 0.5\n")
+  t0 <- Sys.time()
+  CB_est_risk_05_differentnoise[[i]] <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+  Sys.time() - t0
+}
+saveRDS(fusedlasso_unbiasedDF_differentnoise, paste(resultsdir, "/fusedlasso_unbiasedDF_differentnoise", sep = ""))
+saveRDS(CB_est_risk_01_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise", sep = ""))
+saveRDS(CB_est_risk_03_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise", sep = ""))
+saveRDS(CB_est_risk_04_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise", sep = ""))
