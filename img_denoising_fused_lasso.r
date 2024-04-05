@@ -2,7 +2,6 @@
 #######  image denoising using fused LASSO
 #######  compare unbiased error estimate and aux rand estimator
 ######################################
-
 root <- rprojroot::has_file(".git/index")
 figsdir = root$find_file("figures")
 resultsdir = root$find_file("savedfiles")
@@ -131,8 +130,9 @@ p1 <- ggplot(df_plot, aes(x = log(lambda), y = risk, group = which, color = whic
                     labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "Risk", "SURE")) + 
   xlab(expression(paste("log ", lambda))) + 
   ylab("Risk")
+
 p1
-ggsave(paste(figsdir, "/risk_lena_CB.pdf", sep = ""), 
+ggsave(paste(figsdir, "/risk_parrots_CB.pdf", sep = ""), 
        plot = p1, device = "pdf", width = 10, height = 6)
 
 CB_est_risk <- CB_est_risk_01
@@ -152,33 +152,38 @@ par(mfrow=c(1,1))
 ### Many noise replications
 ##############
 
-nnoise <- 30
+nnoise <- 10
 lambda_seq <- c(0,exp(seq(log(0.001),log(1.5),length.out = 19)))
 fusedlasso_unbiasedDF_differentnoise <- list()
 CB_est_risk_01_differentnoise <- list()
 CB_est_risk_03_differentnoise <- list()
 CB_est_risk_05_differentnoise <- list()
-set.seed(57)
+noised <- list()
+sol <- list()
+set.seed(5757)
 for(i in 1:nnoise){
   cat(paste("\n noise ", i, "...\n\n"))
-  noised <- normalize(add_gauss_noise(img, sd = sqrt(s2)))
+  noised[[i]] <- normalize(add_gauss_noise(img, sd = sqrt(s2)))
+  t0 <- Sys.time()
+  sol[[i]] <- flsa(noised[[i]], lambda1 = 0, lambda2 = lambda_seq)
+  Sys.time() - t0
   ## unbiased DF estimator
   t0 <- Sys.time()
-  fusedlasso_unbiasedDF_differentnoise[[i]] <- unbiased_risk(noised, lambda_seq, s2 = s2_est, sol)
+  fusedlasso_unbiasedDF_differentnoise[[i]] <- unbiased_risk(noised[[i]], lambda_seq, s2 = s2_est, sol[[i]])
   Sys.time() - t0
   cat("Done with SURE\n")
   ## CB, alpha = 0.1
   alpha = 0.1
   B = 30
   t0 <- Sys.time()
-  CB_est_risk_01_differentnoise[[i]] <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+  CB_est_risk_01_differentnoise[[i]] <- CB_risk(noised[[i]], lambda_seq, alpha, B, s2 = s2_est, sol[[i]])
   Sys.time() - t0
   cat("Done with CB 0.1\n")
   ## CB, alpha = 0.3
   alpha = 0.3
   B = 15
   t0 <- Sys.time()
-  CB_est_risk_05_differentnoise[[i]] <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+  CB_est_risk_05_differentnoise[[i]] <- CB_risk(noised[[i]], lambda_seq, alpha, B, s2 = s2_est, sol[[i]])
   Sys.time() - t0
   cat("Done with CB 0.3\n")
   ## CB, alpha = 0.5
@@ -186,10 +191,82 @@ for(i in 1:nnoise){
   B = 5
   cat("Done with CB 0.5\n")
   t0 <- Sys.time()
-  CB_est_risk_05_differentnoise[[i]] <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+  CB_est_risk_05_differentnoise[[i]] <- CB_risk(noised[[i]], lambda_seq, alpha, B, s2 = s2_est, sol[[i]])
   Sys.time() - t0
 }
-saveRDS(fusedlasso_unbiasedDF_differentnoise, paste(resultsdir, "/fusedlasso_unbiasedDF_differentnoise", sep = ""))
-saveRDS(CB_est_risk_01_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise", sep = ""))
-saveRDS(CB_est_risk_03_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise", sep = ""))
-saveRDS(CB_est_risk_04_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise", sep = ""))
+
+# saveRDS(noised, paste(resultsdir, "/noised_differentnoise_10it5757seed", sep = ""))
+# saveRDS(sol, paste(resultsdir, "/sol_differentnoise_10it5757seed", sep = ""))
+# saveRDS(fusedlasso_unbiasedDF_differentnoise, paste(resultsdir, "/fusedlasso_unbiasedDF_differentnoise_10it5757seed", sep = ""))
+# saveRDS(CB_est_risk_01_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise_10it5757seed", sep = ""))
+# saveRDS(CB_est_risk_03_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise_10it5757seed", sep = ""))
+# saveRDS(CB_est_risk_05_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise_10it5757seed", sep = ""))
+
+## plotting
+noised <- c(readRDS(paste0(resultsdir, "/noised_differentnoise_05it57seed"))[1:5],
+            readRDS(paste0(resultsdir, "/noised_differentnoise_10it5757seed"))[1:10])
+sol <- c(readRDS(paste0(resultsdir, "/sol_differentnoise_05it57seed"))[1:5],
+         readRDS(paste0(resultsdir, "/sol_differentnoise_10it5757seed"))[1:10])
+fusedlasso_unbiasedDF <- c(readRDS(paste0(resultsdir, "/fusedlasso_unbiasedDF_differentnoise_05it57seed"))[1:5],
+                           readRDS(paste0(resultsdir, "/fusedlasso_unbiasedDF_differentnoise_10it5757seed"))[1:10])
+CB_est_risk_fused_lasso_01 <- c(readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise_05it57seed"))[1:5],
+                                readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise_10it5757seed"))[1:10])
+# CB_est_risk_fused_lasso_03 <- c(readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise_05it57seed"))[1:5],
+#                                 readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise_10it5757seed"))[1:10])
+CB_est_risk_fused_lasso_05 <- c(readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise_05it57seed"))[1:5],
+                                readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise_10it5757seed"))[1:10])
+
+
+get_optm_lambda_SURE <- function(dat){
+  lambda <- dat[,1]
+  risk  <- dat[,3]
+  return(lambda[which.min(risk)])
+}
+
+get_optm_lambda_CB <- function(dat){
+  lambda <- as.numeric(rownames(dat))
+  risk  <- dat[,1]
+  return(lambda[which.min(risk)])
+}
+
+optimal_lambdas <- data.frame(
+  SURE = unlist(lapply(fusedlasso_unbiasedDF, get_optm_lambda_SURE)),
+  CB01 = unlist(lapply(CB_est_risk_fused_lasso_01, get_optm_lambda_CB)),
+  CB05 = unlist(lapply(CB_est_risk_fused_lasso_05, get_optm_lambda_CB)))
+
+table(optimal_lambdas$SURE)
+table(optimal_lambdas$CB01)
+table(optimal_lambdas$CB05)
+
+pdf(file = paste(figsdir, "/imagedenoising_image_multiplelambdas.pdf", sep = ""),  
+    width = 14, height = 4) 
+par(mfrow = c(1,4))
+image(img, col = gray.colors(500), main = "Original")
+image(noised[[1]], col = gray.colors(500), main = "Noise iteration 1")
+image(sol[[1]][12,,], col = gray.colors(500), main = "Solution lambda = 0.058")
+image(sol[[1]][13,,], col = gray.colors(500), main = "Solution lambda = 0.087")
+dev.off()
+par(mfrow=c(1,1))
+
+bind_rows(
+  plyr::ldply(fusedlasso_unbiasedDF, function(el){
+    data.frame(lambda = el$lambda, riskhat = el$risk-s2, method = "SURE", id = rnorm(1))
+  }),
+  plyr::ldply(CB_est_risk_fused_lasso_01, function(el){
+    data.frame(lambda = as.numeric(rownames(el)),
+               riskhat = el[,1], method = "CB01", id = rnorm(1))
+  }),
+  plyr::ldply(CB_est_risk_fused_lasso_05, function(el){
+    data.frame(lambda = as.numeric(rownames(el)),
+               riskhat = el[,1], method = "CB05", id = rnorm(1))
+  })) %>% 
+  ggplot(aes(x = log(lambda), y = riskhat, color = method, group = id)) +
+  geom_line(alpha = 0.3) +
+  theme_minimal()
+
+
+
+
+
+
+
