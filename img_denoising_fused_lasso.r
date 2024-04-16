@@ -22,199 +22,89 @@ fpath <- system.file('extdata/parrots.png',package='imager')
 parrots <- load.image(fpath)
 plot(grayscale(parrots))
 img <- grayscale(parrots)[,,1,1] 
-image(img[60:257, 168:321])
-img <- img[60:257, 168:321]
+image(img[72:227, 172:311])
+img <- img[72:227, 172:311]
 img <- img[,ncol(img):1]
 img <- normalize(img)
 image(img, col = gray.colors(500))
 
 ## adding noise
 set.seed(208)
-s2 = .01
+s2 = .03
 s2_est = s2
 noised <- normalize(add_gauss_noise(img, sd = sqrt(s2)))
 image(noised, col = gray.colors(500))
 
-## sequence of lambdas for fused lasso
-lambda_seq <- c(0,exp(seq(log(0.001),log(1.5),length.out = 19)))
-
-## fused lasso
-t0 <- Sys.time()
-sol <- flsa(noised, lambda1 = 0, lambda2 = lambda_seq)
-Sys.time() - t0
-saveRDS(sol, paste(resultsdir, "/sol", sep = ""))
-
-## real risk
-set.seed(57)
-t0 <- Sys.time()
-real_risk <- true_risk(img, lambda_seq, s2)
-Sys.time() - t0
-saveRDS(real_risk, paste(resultsdir, "/real_risk0_fused_lasso", sep = ""))
-
-## unbiased DF estimator
-t0 <- Sys.time()
-fusedlasso_unbiasedDF <- unbiased_risk(noised, lambda_seq, s2 = s2_est, sol)
-Sys.time() - t0
-saveRDS(fusedlasso_unbiasedDF, paste(resultsdir, "/fusedlasso_unbiasedDF", sep = ""))
-
-## CB, alpha = 0.1
-set.seed(57)
-alpha = 0.1
-B = 30
-t0 <- Sys.time()
-CB_est_risk_01 <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
-Sys.time() - t0
-saveRDS(CB_est_risk_01, paste(resultsdir, "/CB_est_risk_fused_lasso_01", sep = ""))
-
-## CB, alpha = 0.3
-set.seed(57)
-alpha = 0.3
-B = 15
-t0 <- Sys.time()
-CB_est_risk_03 <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
-Sys.time() - t0
-saveRDS(CB_est_risk_03, paste(resultsdir, "/CB_est_risk_fused_lasso_03", sep = ""))
-
-## CB, alpha = 0.5
-set.seed(57)
-alpha = 0.5
-B = 5
-t0 <- Sys.time()
-CB_est_risk_05 <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
-Sys.time() - t0
-saveRDS(CB_est_risk_05, paste(resultsdir, "/CB_est_risk_fused_lasso_05", sep = ""))
-
-
-### plotting
-sol <- readRDS(paste(resultsdir, "/sol", sep = ""))
-real_risk <- readRDS(paste(resultsdir, "/real_risk0_fused_lasso", sep = ""))
-fusedlasso_unbiasedDF <- readRDS(paste(resultsdir, "/fusedlasso_unbiasedDF", sep = ""))
-CB_est_risk_01 <- readRDS(paste(resultsdir, "/CB_est_risk_fused_lasso_01", sep = ""))
-CB_est_risk_03 <- readRDS(paste(resultsdir, "/CB_est_risk_fused_lasso_03", sep = ""))
-CB_est_risk_05 <- readRDS(paste(resultsdir, "/CB_est_risk_fused_lasso_05", sep = ""))
-
-
-CB_est_risk_01$lambda <- as.numeric(rownames(CB_est_risk_01))
-CB_est_risk_03$lambda <- as.numeric(rownames(CB_est_risk_03))
-CB_est_risk_05$lambda <- as.numeric(rownames(CB_est_risk_05))
-CB_est_risk_01$risk <- CB_est_risk_01$value
-CB_est_risk_03$risk <- CB_est_risk_03$value
-CB_est_risk_05$risk <- CB_est_risk_05$value
-
-CB_est_risk_01$lambda[which.min(CB_est_risk_01$value)]
-CB_est_risk_03$lambda[which.min(CB_est_risk_03$value)]
-CB_est_risk_05$lambda[which.min(CB_est_risk_05$value)]
-fusedlasso_unbiasedDF$lambda[which.min(fusedlasso_unbiasedDF$risk)]
-real_risk$lambda[which.min(real_risk$risk)]
-
-CB_est_risk_01$which <- "0.1"
-CB_est_risk_03$which <- "0.3"
-CB_est_risk_05$which <- "0.5"
-fusedlasso_unbiasedDF$which <- "SURE"
-real_risk$which <- "Risk"
-
-real_risk$lambda <- as.numeric(as.vector(real_risk$lambda))
-
-df_plot <- dplyr::bind_rows(CB_est_risk_01, CB_est_risk_03, CB_est_risk_05, 
-                            fusedlasso_unbiasedDF, real_risk) %>% dplyr::select(lambda, risk, which)
-
-p1 <- ggplot(df_plot, aes(x = log(lambda), y = risk, group = which, color = which)) + 
-  geom_line(aes(linetype = which, size = which)) + 
-  theme_minimal(base_size = 18) + 
-  theme(legend.title = element_blank(), legend.position = "right") +
-  scale_color_manual(values=c("gray78", "gray35", "black", "dodgerblue", "firebrick3"), 
-                     labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "Risk", "SURE")) + 
-  scale_linetype_manual(values=c("solid", "solid", "solid", "dotted", "longdash"), 
-                        labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "Risk", "SURE")) + 
-  scale_size_manual(values=c(0.6,0.6, 0.6, 1,0.8), 
-                    labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "Risk", "SURE")) + 
-  xlab(expression(paste("log ", lambda))) + 
-  ylab("Risk")
-
-p1
-ggsave(paste(figsdir, "/risk_parrots_CB.pdf", sep = ""), 
-       plot = p1, device = "pdf", width = 10, height = 6)
-
-CB_est_risk <- CB_est_risk_01
-
-pdf(file = paste(figsdir, "/imagedenoising_image.pdf", sep = ""),  
-    width = 14, height = 4) 
-par(mfrow = c(1,4))
-image(img, col = gray.colors(500), main = "Original")
-image(noised, col = gray.colors(500), main = "Noisy")
-image(sol[which.min(CB_est_risk$value),,], col = gray.colors(500), main = "CB-denoised")
-image(sol[which.min(fusedlasso_unbiasedDF$risk),,], col = gray.colors(500), main = "SURE-denoised")
-dev.off()
-par(mfrow=c(1,1))
-
-
 ##############
 ### Many noise replications
 ##############
-
-nnoise <- 10
-lambda_seq <- c(0,exp(seq(log(0.001),log(1.5),length.out = 19)))
-fusedlasso_unbiasedDF_differentnoise <- list()
-CB_est_risk_01_differentnoise <- list()
-CB_est_risk_03_differentnoise <- list()
-CB_est_risk_05_differentnoise <- list()
-noised <- list()
-sol <- list()
-set.seed(5757)
-for(i in 1:nnoise){
-  cat(paste("\n noise ", i, "...\n\n"))
-  noised[[i]] <- normalize(add_gauss_noise(img, sd = sqrt(s2)))
-  t0 <- Sys.time()
-  sol[[i]] <- flsa(noised[[i]], lambda1 = 0, lambda2 = lambda_seq)
-  Sys.time() - t0
-  ## unbiased DF estimator
-  t0 <- Sys.time()
-  fusedlasso_unbiasedDF_differentnoise[[i]] <- unbiased_risk(noised[[i]], lambda_seq, s2 = s2_est, sol[[i]])
-  Sys.time() - t0
-  cat("Done with SURE\n")
-  ## CB, alpha = 0.1
-  alpha = 0.1
-  B = 30
-  t0 <- Sys.time()
-  CB_est_risk_01_differentnoise[[i]] <- CB_risk(noised[[i]], lambda_seq, alpha, B, s2 = s2_est, sol[[i]])
-  Sys.time() - t0
-  cat("Done with CB 0.1\n")
-  ## CB, alpha = 0.3
-  alpha = 0.3
-  B = 15
-  t0 <- Sys.time()
-  CB_est_risk_05_differentnoise[[i]] <- CB_risk(noised[[i]], lambda_seq, alpha, B, s2 = s2_est, sol[[i]])
-  Sys.time() - t0
-  cat("Done with CB 0.3\n")
-  ## CB, alpha = 0.5
-  alpha = 0.5
-  B = 5
-  cat("Done with CB 0.5\n")
-  t0 <- Sys.time()
-  CB_est_risk_05_differentnoise[[i]] <- CB_risk(noised[[i]], lambda_seq, alpha, B, s2 = s2_est, sol[[i]])
-  Sys.time() - t0
-}
-
-# saveRDS(noised, paste(resultsdir, "/noised_differentnoise_10it5757seed", sep = ""))
-# saveRDS(sol, paste(resultsdir, "/sol_differentnoise_10it5757seed", sep = ""))
-# saveRDS(fusedlasso_unbiasedDF_differentnoise, paste(resultsdir, "/fusedlasso_unbiasedDF_differentnoise_10it5757seed", sep = ""))
-# saveRDS(CB_est_risk_01_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise_10it5757seed", sep = ""))
-# saveRDS(CB_est_risk_03_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise_10it5757seed", sep = ""))
-# saveRDS(CB_est_risk_05_differentnoise, paste(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise_10it5757seed", sep = ""))
+# nnoise <- 10
+# lambda_seq <- c(exp(seq(log(0.007),log(2),length.out = 50)))
+# 
+# init_seed <- 202
+# for(i in 1:nnoise){
+#   set.seed((init_seed + i))
+#   cat(paste("\n noise ", i, "...\n\n"))
+#   cat(paste("\t seed: ", init_seed + i, "\n"))
+#   print(Sys.time())
+#   noised <- normalize(add_gauss_noise(img, sd = sqrt(s2)))
+#   saveRDS(noised, paste(resultsdir, "noised_differentnoise_1it", (init_seed + i), "seed.RDS", sep = ""))
+#   cat("Done with image noise generation\n")
+#   t0 <- Sys.time()
+#   sol <- flsa::flsa(noised, lambda1 = 0, lambda2 = lambda_seq)
+#   print(Sys.time() - t0)
+#   saveRDS(sol, paste(resultsdir, "sol_differentnoise_1it", (init_seed + i), "seed.RDS", sep = ""))
+#   cat("Done with model fit\n")
+#   ## unbiased DF estimator
+#   t0 <- Sys.time()
+#   fusedlasso_unbiasedDF_differentnoise <- unbiased_risk(noised, lambda_seq, s2 = s2_est, sol)
+#   print(Sys.time() - t0)
+#   saveRDS(fusedlasso_unbiasedDF_differentnoise, paste(resultsdir, "fusedlasso_unbiasedDF_differentnoise_1it", (init_seed + i), "seed.RDS", sep = ""))
+#   cat("Done with SURE\n")
+#   ## CB, alpha = 0.1
+#   alpha = 0.1
+#   B = 30
+#   t0 <- Sys.time()
+#   CB_est_risk_01_differentnoise <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+#   print(Sys.time() - t0)
+#   saveRDS(CB_est_risk_01_differentnoise, paste(resultsdir, "CB_est_risk_fused_lasso_01_differentnoise_1it", (init_seed + i), "seed.RDS", sep = ""))
+#   cat("Done with CB 0.1\n")
+#   ## CB, alpha = 0.3
+#   alpha = 0.3
+#   B = 15
+#   t0 <- Sys.time()
+#   CB_est_risk_03_differentnoise <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+#   print(Sys.time() - t0)
+#   saveRDS(CB_est_risk_03_differentnoise, paste(resultsdir, "CB_est_risk_fused_lasso_03_differentnoise_1it", (init_seed + i), "seed.RDS", sep = ""))
+#   cat("Done with CB 0.3\n")
+#   # CB, alpha = 0.5
+#   alpha = 0.5
+#   B = 5
+#   t0 <- Sys.time()
+#   CB_est_risk_05_differentnoise <- CB_risk(noised, lambda_seq, alpha, B, s2 = s2_est, sol)
+#   print(Sys.time() - t0)
+#   saveRDS(CB_est_risk_05_differentnoise, paste(resultsdir, "CB_est_risk_fused_lasso_05_differentnoise_1it", (init_seed + i), "seed.RDS", sep = ""))
+#   cat("Done with CB 0.5\n")
+#   cat(paste("Saved results for iteration ", i, "...\nStarting next iteration.\n"))
+# }
 
 ## plotting
-noised <- c(readRDS(paste0(resultsdir, "/noised_differentnoise_05it57seed"))[1:5],
-            readRDS(paste0(resultsdir, "/noised_differentnoise_10it5757seed"))[1:10])
-sol <- c(readRDS(paste0(resultsdir, "/sol_differentnoise_05it57seed"))[1:5],
-         readRDS(paste0(resultsdir, "/sol_differentnoise_10it5757seed"))[1:10])
-fusedlasso_unbiasedDF <- c(readRDS(paste0(resultsdir, "/fusedlasso_unbiasedDF_differentnoise_05it57seed"))[1:5],
-                           readRDS(paste0(resultsdir, "/fusedlasso_unbiasedDF_differentnoise_10it5757seed"))[1:10])
-CB_est_risk_fused_lasso_01 <- c(readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise_05it57seed"))[1:5],
-                                readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise_10it5757seed"))[1:10])
-# CB_est_risk_fused_lasso_03 <- c(readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise_05it57seed"))[1:5],
-#                                 readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise_10it5757seed"))[1:10])
-CB_est_risk_fused_lasso_05 <- c(readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise_05it57seed"))[1:5],
-                                readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise_10it5757seed"))[1:10])
+noised <- list()
+sol <- list()
+fusedlasso_unbiasedDF <- list()
+CB_est_risk_fused_lasso_01 <- list()
+CB_est_risk_fused_lasso_03 <- list()
+CB_est_risk_fused_lasso_05 <- list()
+for(i in 1:10){
+  start_seed = 202
+  cat(i, "\n")
+  noised[[i]] <- readRDS(paste0(resultsdir, "/noised_differentnoise_1it", start_seed+i, "seed.RDS"))
+  sol[[i]] <- readRDS(paste0(resultsdir, "/sol_differentnoise_1it", start_seed+i, "seed.RDS"))
+  fusedlasso_unbiasedDF[[i]] <- readRDS(paste0(resultsdir, "/fusedlasso_unbiasedDF_differentnoise_1it", start_seed+i, "seed.RDS"))
+  CB_est_risk_fused_lasso_01[[i]] <- readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_01_differentnoise_1it", start_seed+i, "seed.RDS"))
+  CB_est_risk_fused_lasso_03[[i]] <- readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_03_differentnoise_1it", start_seed+i, "seed.RDS"))
+  CB_est_risk_fused_lasso_05[[i]] <- readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise_1it", start_seed+i, "seed.RDS"))
+}
 
 
 get_optm_lambda_SURE <- function(dat){
@@ -232,29 +122,52 @@ get_optm_lambda_CB <- function(dat){
 optimal_lambdas <- data.frame(
   SURE = unlist(lapply(fusedlasso_unbiasedDF, get_optm_lambda_SURE)),
   CB01 = unlist(lapply(CB_est_risk_fused_lasso_01, get_optm_lambda_CB)),
+  CB03 = unlist(lapply(CB_est_risk_fused_lasso_03, get_optm_lambda_CB)),
   CB05 = unlist(lapply(CB_est_risk_fused_lasso_05, get_optm_lambda_CB)))
 
-table(optimal_lambdas$SURE)
-table(optimal_lambdas$CB01)
-table(optimal_lambdas$CB05)
+optimal_lambdas %>%
+  reshape2::melt() %>%
+  mutate(value = as.factor(value)) %>%
+  group_by(variable, value) %>%
+  count(variable, as.factor(value), .drop = FALSE)
+
+p1 <- optimal_lambdas %>% reshape2::melt() %>% mutate(value = as.factor(round(value,3))) %>%
+  group_by(variable, value) %>%
+  count(variable, value, .drop = FALSE) %>% 
+  ggplot(aes(x = value, y = n, roup = variable, fill = variable)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  theme_minimal(base_size = 20) +
+  theme(legend.title = element_blank()) +
+  ylab("count") +
+  xlab(expression(lambda))
+p1
+ggsave(paste(figsdir, "/selected_lambdas_multiple_noise.pdf", sep = ""), 
+       plot = p1, device = "pdf", width = 10, height = 6)
+
 
 pdf(file = paste(figsdir, "/imagedenoising_image_multiplelambdas.pdf", sep = ""),  
-    width = 14, height = 4) 
-par(mfrow = c(1,4))
-image(img, col = gray.colors(500), main = "Original")
+    width = 11, height = 7) 
+par(mfrow = c(2,3))
 image(noised[[1]], col = gray.colors(500), main = "Noise iteration 1")
-image(sol[[1]][12,,], col = gray.colors(500), main = "Solution lambda = 0.058")
-image(sol[[1]][13,,], col = gray.colors(500), main = "Solution lambda = 0.087")
+image(sol[[1]][27,,], col = gray.colors(500), main = "SURE and CB0.1, lambda = 0.141")
+image(sol[[1]][29,,], col = gray.colors(500), main = "CB0.5, lambda = 0.177")
+image(noised[[4]], col = gray.colors(500), main = "Noise iteration 4")
+image(sol[[4]][28,,], col = gray.colors(500), main = "SURE, lambda = 0.158")
+image(sol[[4]][29,,], col = gray.colors(500), main = "CB0.5, lambda = 0.177")
 dev.off()
 par(mfrow=c(1,1))
 
-bind_rows(
+p1 <- bind_rows(
   plyr::ldply(fusedlasso_unbiasedDF, function(el){
-    data.frame(lambda = el$lambda, riskhat = el$risk-s2, method = "SURE", id = rnorm(1))
+    data.frame(lambda = el$lambda, riskhat = el$risk, method = "SURE", id = rnorm(1))
+  }),
+  plyr::ldply(CB_est_risk_fused_lasso_03, function(el){
+    data.frame(lambda = as.numeric(rownames(el)),
+               riskhat = el[,1], method = "CB01", id = rnorm(1))
   }),
   plyr::ldply(CB_est_risk_fused_lasso_01, function(el){
     data.frame(lambda = as.numeric(rownames(el)),
-               riskhat = el[,1], method = "CB01", id = rnorm(1))
+               riskhat = el[,1], method = "CB03", id = rnorm(1))
   }),
   plyr::ldply(CB_est_risk_fused_lasso_05, function(el){
     data.frame(lambda = as.numeric(rownames(el)),
@@ -262,11 +175,65 @@ bind_rows(
   })) %>% 
   ggplot(aes(x = log(lambda), y = riskhat, color = method, group = id)) +
   geom_line(alpha = 0.3) +
-  theme_minimal()
+  theme_minimal(base_size = 20) +
+  ylab(expression(hat(Risk))) +
+  xlab(expression(log(lambda))) +
+  theme(legend.title = element_blank())
+p1
+ggsave(paste(figsdir, "/risk_curves_multiple_noise.pdf", sep = ""), 
+       plot = p1, device = "pdf", width = 10, height = 6)
 
 
 
 
+# ---------
+# results for one noise iteration simulation
+df_plot <- bind_rows(
+  plyr::ldply(list(fusedlasso_unbiasedDF[[1]]), function(el){
+    data.frame(lambda = el$lambda, riskhat = el$risk, method = "SURE", id = rnorm(1))
+  }),
+  plyr::ldply(list(CB_est_risk_fused_lasso_01[[1]]), function(el){
+    data.frame(lambda = as.numeric(rownames(el)),
+               riskhat = el[,1], method = "CB01", id = rnorm(1))
+  }),
+  plyr::ldply(list(CB_est_risk_fused_lasso_03[[1]]), function(el){
+    data.frame(lambda = as.numeric(rownames(el)),
+               riskhat = el[,1], method = "CB03", id = rnorm(1))
+  }),
+  plyr::ldply(list(CB_est_risk_fused_lasso_05[[1]]), function(el){
+    data.frame(lambda = as.numeric(rownames(el)),
+               riskhat = el[,1], method = "CB05", id = rnorm(1))
+  }))
+
+p1 <- df_plot %>% ggplot(aes(x = log(lambda), y = riskhat, color = method, group = method)) +
+  geom_line(aes(linetype = method, size = method)) +
+  theme_minimal(base_size = 20) +
+  ylab(expression(hat(Risk))) +
+  xlab(expression(log(lambda))) +
+  theme(legend.title = element_blank()) +
+  scale_color_manual(values=c("gray78", "gray35", "black", "firebrick3"), 
+                                                          labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "SURE")) + 
+  scale_linetype_manual(values=c("solid", "solid", "solid", "dotted", "longdash"), 
+                        labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "SURE")) + 
+  scale_size_manual(values=c(0.6,0.6, 0.6, 1,0.8), 
+                    labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "SURE"))
+
+p1
+ggsave(paste(figsdir, "/risk_parrots_CB_onereplicate.pdf", sep = ""), 
+       plot = p1, device = "pdf", width = 10, height = 6)
+
+
+pdf(file = paste(figsdir, "/imagedenoising_sidebyside_onereplicate.pdf", sep = ""),  
+    width = 8, height = 6) 
+par(mfrow = c(2,3))
+image(img, col = gray.colors(500), main = "Original")
+image(noised[[1]], col = gray.colors(500), main = "Noised")
+image(sol[[1]][27,,], col = gray.colors(500), main = "SURE denoised")
+image(sol[[1]][27,,], col = gray.colors(500), main = "CB0.1 denoised")
+image(sol[[1]][28,,], col = gray.colors(500), main = "CB0.3 denoised")
+image(sol[[1]][29,,], col = gray.colors(500), main = "CB0.5 denoised")
+dev.off()
+par(mfrow=c(1,1))
 
 
 

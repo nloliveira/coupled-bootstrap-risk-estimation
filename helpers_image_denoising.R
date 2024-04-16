@@ -107,7 +107,7 @@ unbiased_risk <- function(noised, lambda_seq, s2 = NULL, sol = NULL){
   risk <- numeric(length(lambda_seq))
   for(i in 1:dim(sol)[1]){
     df[i] <- count_df_image(sol[i,,])
-    risk[i] <- mean((noised - sol[i,,])^2) + 2*s2*df[i]/(dim(sol)[2]*dim(sol)[3])
+    risk[i] <- mean((noised - sol[i,,])^2) + 2*s2*df[i]/(dim(sol)[2]*dim(sol)[3]) - s2
   }
   return(data.frame(lambda = lambda_seq, df = df, risk = risk))
 }
