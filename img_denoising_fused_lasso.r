@@ -106,7 +106,6 @@ for(i in 1:10){
   CB_est_risk_fused_lasso_05[[i]] <- readRDS(paste0(resultsdir, "/CB_est_risk_fused_lasso_05_differentnoise_1it", start_seed+i, "seed.RDS"))
 }
 
-
 get_optm_lambda_SURE <- function(dat){
   lambda <- dat[,1]
   risk  <- dat[,3]
@@ -131,20 +130,28 @@ optimal_lambdas %>%
   group_by(variable, value) %>%
   count(variable, as.factor(value), .drop = FALSE)
 
-p1 <- optimal_lambdas %>% reshape2::melt() %>% mutate(value = as.factor(round(value,3))) %>%
-  group_by(variable, value) %>%
-  count(variable, value, .drop = FALSE) %>% 
-  ggplot(aes(x = value, y = n, roup = variable, fill = variable)) +
-  geom_bar(stat="identity", position=position_dodge()) +
+dat <- optimal_lambdas %>% reshape2::melt() %>%
+  mutate(variable = as.character(variable),
+         value = round(log(value),3))
+
+p1 <- dat %>% ggplot() +
+  geom_bar(aes(value, group = variable, fill = variable),
+           stat = "count") +
+  scale_fill_discrete(labels = c(expression(paste(alpha, " = 0.1")),
+                                  expression(paste(alpha, " = 0.3")),
+                                  expression(paste(alpha, " = 0.5")),
+                                  "SURE")) +
   theme_minimal(base_size = 20) +
   theme(legend.title = element_blank()) +
-  ylab("count") +
-  xlab(expression(lambda))
+  ylab("Count") +
+  xlab(expression(log(lambda))) +
+  xlim(range(log(fusedlasso_unbiasedDF[[1]][,1])))
 p1
+
 ggsave(paste(figsdir, "/selected_lambdas_multiple_noise.pdf", sep = ""), 
        plot = p1, device = "pdf", width = 10, height = 6)
 
-
+####
 pdf(file = paste(figsdir, "/imagedenoising_image_multiplelambdas.pdf", sep = ""),  
     width = 11, height = 7) 
 par(mfrow = c(2,3))
@@ -205,18 +212,17 @@ df_plot <- bind_rows(
                riskhat = el[,1], method = "CB05", id = rnorm(1))
   }))
 
-p1 <- df_plot %>% ggplot(aes(x = log(lambda), y = riskhat, color = method, group = method)) +
-  geom_line(aes(linetype = method, size = method)) +
+p1 <- df_plot %>% ggplot() +
+  geom_line(aes(x = log(lambda), y = riskhat, color = method, group = method),
+            linewidth = 1) +
+  scale_color_discrete(labels = c(expression(paste(alpha, " = 0.1")),
+                                  expression(paste(alpha, " = 0.3")),
+                                  expression(paste(alpha, " = 0.5")),
+                                  "SURE")) +
   theme_minimal(base_size = 20) +
   ylab(expression(hat(Risk))) +
   xlab(expression(log(lambda))) +
-  theme(legend.title = element_blank()) +
-  scale_color_manual(values=c("gray78", "gray35", "black", "firebrick3"), 
-                                                          labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "SURE")) + 
-  scale_linetype_manual(values=c("solid", "solid", "solid", "dotted", "longdash"), 
-                        labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "SURE")) + 
-  scale_size_manual(values=c(0.6,0.6, 0.6, 1,0.8), 
-                    labels = expression(paste(alpha, "= 0.1"), paste(alpha, "= 0.3"), paste(alpha, "= 0.5"), "SURE"))
+  theme(legend.title = element_blank()) 
 
 p1
 ggsave(paste(figsdir, "/risk_parrots_CB_onereplicate.pdf", sep = ""), 
@@ -224,14 +230,12 @@ ggsave(paste(figsdir, "/risk_parrots_CB_onereplicate.pdf", sep = ""),
 
 
 pdf(file = paste(figsdir, "/imagedenoising_sidebyside_onereplicate.pdf", sep = ""),  
-    width = 8, height = 6) 
-par(mfrow = c(2,3))
+    width = 10, height = 3) 
+par(mfrow = c(1,4))
 image(img, col = gray.colors(500), main = "Original")
-image(noised[[1]], col = gray.colors(500), main = "Noised")
+image(noised[[1]], col = gray.colors(500), main = "Noisy")
+image(sol[[1]][29,,], col = gray.colors(500), main = "CB denoised")
 image(sol[[1]][27,,], col = gray.colors(500), main = "SURE denoised")
-image(sol[[1]][27,,], col = gray.colors(500), main = "CB0.1 denoised")
-image(sol[[1]][28,,], col = gray.colors(500), main = "CB0.3 denoised")
-image(sol[[1]][29,,], col = gray.colors(500), main = "CB0.5 denoised")
 dev.off()
 par(mfrow=c(1,1))
 
